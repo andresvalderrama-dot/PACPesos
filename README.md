@@ -1,5 +1,3 @@
-# PACPesos
-Banco central para la administración de PACPesos
 # PACPesos - Generación de tokens y QRs (Apps Script)
 
 Instrucciones rápidas para desplegar y usar:
