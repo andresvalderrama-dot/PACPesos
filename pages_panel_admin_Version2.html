@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Administración PAC Pesos</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:Inter,Segoe UI,Roboto,Arial;margin:1rem;background:#f6f8fa;color:#111}
+    .card{background:#fff;border-radius:8px;padding:18px;max-width:960px;margin:1rem auto;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    h1{font-size:1.2rem;margin:0 0 8px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select,button{padding:8px;border-radius:6px;border:1px solid #ddd;font-size:0.95rem}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:8px;border-bottom:1px solid #eee;text-align:left;font-size:0.95rem}
+    .muted{color:#666;font-size:0.9rem}
+    .ok{color:green}.err{color:#b00020}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Panel de Administración - PAC Pesos</h1>
+    <p class="muted">Operaciones para dirección: resumen por curso, entregas masivas y generación de tokens/QRs.</p>
+
+    <div>
+      <label>Admin Key: <input id="adminKey" type="password" placeholder="admin key"/></label>
+      <button onclick="fetchResumen()">Resumen por curso</button>
+      <button onclick="generarTokens()">Generar tokens</button>
+      <button onclick="generarQRs()">Generar QRs (Drive)</button>
+    </div>
+
+    <div style="margin-top:12px">
+      <h3>Entrega masiva</h3>
+      <div class="row">
+        <input id="curso" placeholder="Curso (ej: 5A)"/>
+        <input id="cantidad" type="number" placeholder="Cantidad a entregar"/>
+        <input id="motivo" placeholder="Motivo"/>
+        <input id="registradoPor" placeholder="Registrado por"/>
+        <button onclick="entregaMasiva()">Ejecutar entrega masiva</button>
+      </div>
+      <div id="mensaje" style="margin-top:12px"></div>
+    </div>
+
+    <div id="resumen" style="margin-top:16px"></div>
+  </div>
+
+<script>
+const URL_WEBAPP = 'https://script.google.com/macros/s/AKfycbx.../exec'; // REEMPLAZA con la URL de tu WebApp desplegada
+
+function showMsg(text, ok=true){
+  const el = document.getElementById('mensaje');
+  el.innerHTML = '<div class="'+(ok?'ok':'err')+'">'+text+'</div>';
+}
+
+function fetchResumen(){
+  fetch(URL_WEBAPP, {
+    method: 'POST',
+    body: JSON.stringify({ accion: 'resumen_por_curso' }),
+    headers: { 'Content-Type': 'application/json' }
+  }).then(r=>r.json()).then(data=>{
+    if(!data.success){ showMsg('Error: '+(data.message||'Problema')) ; return; }
+    const c = data.summary || [];
+    const html = '<table><tr><th>Curso</th><th>Saldo total</th></tr>' + c.map(x => `<tr><td>${x.curso}</td><td>${x.saldo_total}</td></tr>`).join('') + '</table>';
+    document.getElementById('resumen').innerHTML = html;
+  }).catch(e=>showMsg('Error conexión: '+e,false));
+}
+
+function generarTokens(){
+  const adminKey = document.getElementById('adminKey').value;
+  fetch(URL_WEBAPP, {
+    method: 'POST',
+    body: JSON.stringify({ accion: 'generar_tokens_batch', adminKey }),
+    headers: { 'Content-Type': 'application/json' }
+  }).then(r=>r.json()).then(data=>{
+    showMsg('Tokens generados: ' + (data.created_count || 0));
+    console.log(data);
+  }).catch(e=>showMsg('Error: '+e,false));
+}
+
+function generarQRs(){
+  const adminKey = document.getElementById('adminKey').value;
+  fetch(URL_WEBAPP, {
+    method: 'POST',
+    body: JSON.stringify({ accion: 'generar_qrs_batch', adminKey }),
+    headers: { 'Content-Type': 'application/json' }
+  }).then(r=>r.json()).then(data=>{
+    showMsg('QRs procesados: ' + (data.processed || 0));
+    console.log(data);
+  }).catch(e=>showMsg('Error: '+e,false));
+}
+
+function entregaMasiva(){
+  const adminKey = document.getElementById('adminKey').value;
+  const curso = document.getElementById('curso').value;
+  const cantidad = document.getElementById('cantidad').value;
+  const motivo = document.getElementById('motivo').value;
+  const registradoPor = document.getElementById('registradoPor').value;
+  fetch(URL_WEBAPP, {
+    method: 'POST',
+    body: JSON.stringify({ accion: 'entrega_masiva', adminKey, curso, cantidad, motivo, registradoPor }),
+    headers: { 'Content-Type': 'application/json' }
+  }).then(r=>r.json()).then(data=>{
+    if(data.success){
+      showMsg('Entrega masiva completada: ' + data.updated_count + ' estudiantes');
+      console.log(data.details);
+    } else {
+      showMsg('Error: '+(data.message||'Problema'), false);
+    }
+  }).catch(e=>showMsg('Error conexión: '+e,false));
+}
+</script>
+</body>
+</html>
